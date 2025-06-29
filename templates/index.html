@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tuhu NEWS - BM25 Search Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --google-blue: #1a0dab;
+            --google-green: #006621;
+            --google-gray-text: #4d5156;
+            --google-gray-meta: #70757a;
+            --google-border-color: #dfe1e5;
+            --background-color: #fff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+            background: var(--background-color);
+            min-height: 100vh;
+            color: var(--google-gray-text);
+        }
+
+        /* --- Main Container & Header --- */
+        .header-search-container {
+            padding: 20px;
+            border-bottom: 1px solid var(--google-border-color);
+            position: sticky;
+            top: 0;
+            background: var(--background-color);
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            height: 40px;
+            width: auto;
+        }
+
+        /* --- Search Form --- */
+        .search-form-wrapper {
+            flex-grow: 1;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 50px;
+            /* Padding for icons */
+            border: 1px solid var(--google-border-color);
+            border-radius: 24px;
+            font-size: 16px;
+            outline: none;
+            transition: box-shadow 0.2s;
+        }
+
+        .search-input:hover,
+        .search-input:focus {
+            box-shadow: 0 1px 6px rgba(32, 33, 36, 0.28);
+        }
+
+        .search-icon-svg,
+        .voice-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+        }
+
+        .search-icon-svg {
+            left: 16px;
+            color: var(--google-gray-meta);
+        }
+
+        .voice-btn {
+            right: 16px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+        }
+
+        .voice-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: #4285F4;
+        }
+
+        .voice-btn.active {
+            background-color: #e8f0fe;
+        }
+
+        /* Hide original search button */
+        .search-button {
+            display: none;
+        }
+
+        .voice-popup {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            top: 55px;
+            /* Position below search bar */
+            background: #fffbe6;
+            color: #222;
+            border: 1px solid #ffe066;
+            border-radius: 8px;
+            padding: 10px 22px;
+            font-size: 1rem;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+            display: none;
+        }
+
+        /* --- Results Section --- */
+        .main-content {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .results-section {
+            padding: 6px 0;
+        }
+
+        .results-tools {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 12px 0;
+            color: var(--google-gray-meta);
+            font-size: 14px;
+        }
+
+        .results-count {
+            white-space: nowrap;
+        }
+
+        .filter-controls {
+            display: flex;
+            gap: 16px;
+        }
+
+        #categorySelect,
+        #sortSelect {
+            background-color: transparent;
+            border: none;
+            color: var(--google-gray-meta);
+            font-size: 14px;
+            padding: 4px;
+            cursor: pointer;
+            border-radius: 4px;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236c757d' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 4px center;
+            background-size: 16px;
+            padding-right: 24px;
+        }
+
+        #categorySelect:hover,
+        #sortSelect:hover {
+            background-color: #f1f3f4;
+        }
+
+        .results-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .result-item {
+            padding: 24px 0;
+            border-bottom: 1px solid var(--google-border-color);
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-source-url {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--google-gray-text);
+            margin-bottom: 4px;
+        }
+
+        .result-source-url img {
+            height: 18px;
+            width: 18px;
+            object-fit: contain;
+        }
+
+        .result-title {
+            margin-bottom: 6px;
+        }
+
+        .result-title a {
+            font-size: 20px;
+            color: var(--google-blue);
+            text-decoration: none;
+            font-weight: 400;
+        }
+
+        .result-title a:hover {
+            text-decoration: underline;
+        }
+
+        .result-text {
+            font-size: 14px;
+            line-height: 1.57;
+            color: var(--google-gray-text);
+        }
+
+        .result-meta {
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--google-gray-meta);
+        }
+
+        .highlight {
+            background: none;
+            color: inherit;
+            font-weight: 700;
+            /* Bold like Google */
+        }
+
+        /* Hide original meta elements */
+        .result-category,
+        .result-score {
+            display: none;
+        }
+
+        /* --- Loading, No Results, Pagination --- */
+        .status-message {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--google-gray-meta);
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4285F4;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .no-results h3 {
+            font-size: 1.2rem;
+            color: #222;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        #suggestionBox a {
+            color: var(--google-blue);
+            text-decoration: underline;
+        }
+
+        #pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin: 40px 0;
+            font-size: 14px;
+        }
+
+        #pagination button {
+            background: #f1f3f4;
+            border: 1px solid #f1f3f4;
+            color: #3c4043;
+            border-radius: 4px;
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: background-color .3s;
+        }
+
+        #pagination button:hover:not(:disabled) {
+            border: 1px solid #d3d4d6;
+        }
+
+        #pagination button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* --- Responsive Design --- */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .logo {
+                margin-bottom: 12px;
+            }
+
+            .results-tools {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header-search-container">
+        <div class="header-content">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Tuhu NEWS Logo" class="logo">
+            <div class="search-form-wrapper">
+                <form id="searchForm">
+                    <div style="position:relative;">
+                        <div class="search-icon-svg">
+                            <svg focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20"
+                                height="20">
+                                <path
+                                    d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z">
+                                </path>
+                            </svg>
+                        </div>
+                        <input type="text" class="search-input" id="searchInput" placeholder="Cari berita atau topik"
+                            autocomplete="off">
+                        <button type="button" class="voice-btn" id="voiceBtn" title="Cari dengan suara">
+                            <svg viewBox="0 0 24 24">
+                                <path fill="#4285F4"
+                                    d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                    <button type="submit" class="search-button">Cari</button>
+                </form>
+                <div class="voice-popup" id="voicePopup">Mendengarkan...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="results-section" id="resultsSection" style="display: none;">
+            <div class="results-tools">
+                <div class="results-count" id="resultsCount"></div>
+                <div class="filter-controls">
+                    <select id="categorySelect" style="display:none;"></select>
+                    <select id="sortSelect" style="display:none;">
+                        <option value="relevansi">Urutkan: Relevansi</option>
+                        <option value="terbaru">Terbaru</option>
+                        <option value="terlama">Terlama</option>
+                    </select>
+                </div>
+            </div>
+            <div class="results-list" id="resultsList"></div>
+            <div id="pagination"></div>
+        </div>
+
+        <div class="status-message" id="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Mencari dokumen...</p>
+        </div>
+
+        <div class="status-message no-results" id="noResults" style="display: none;">
+            <h3>Tidak ada hasil yang cocok dengan pencarian Anda</h3>
+            <p>Saran: Pastikan semua kata dieja dengan benar atau coba kata kunci yang berbeda.</p>
+            <div id="suggestionBox" style="margin-top:12px; font-size:1.05rem;"></div>
+        </div>
+    </div>
+
+
+    <script>
+        const searchForm = document.getElementById('searchForm');
+        const searchInput = document.getElementById('searchInput');
+        const resultsSection = document.getElementById('resultsSection');
+        const resultsList = document.getElementById('resultsList');
+        const resultsCount = document.getElementById('resultsCount');
+        const loading = document.getElementById('loading');
+        const noResults = document.getElementById('noResults');
+        const sortSelect = document.getElementById('sortSelect');
+        const categorySelect = document.getElementById('categorySelect');
+        let lastQuery = '';
+        let lastSort = 'relevansi';
+        let lastPage = 1;
+        let lastTotalPages = 1;
+        let lastCategory = '';
+
+        const sourceLogos = {
+            "cnn indonesia": "/static/cnn.png",
+            "kompas": "/static/kompas.png",
+            "detik": "/static/detik.png",
+            "kumparan": "/static/kumparan.png",
+            "rimanews": "/static/rimanews.jpeg",
+            "juara.net": "/static/juaranet.png"
+        };
+
+        function highlightText(text, keywords) {
+            if (!text || !keywords || keywords.length === 0) return text;
+            const pattern = new RegExp('(' + keywords.map(w => w.replace(/[.*+?^${}()|[\\]\\/g, '\\$&')).join('|') + ')', 'gi');
+            return text.replace(pattern, '<span class="highlight">$1</span>');
+        }
+
+        function renderResultItem(result, keywords) {
+            const resultItem = document.createElement('div');
+            resultItem.className = 'result-item';
+
+            const logoUrl = sourceLogos[result.source.toLowerCase()] || 'placeholder.svg';
+
+            let textSnippet = result.date ? `<span style="color:var(--google-gray-meta)">${result.date}</span> &mdash; ${highlightText(result.text, keywords)}` : highlightText(result.text, keywords);
+
+            resultItem.innerHTML = `
+                <div class="result-source-url">
+                    <img src="${logoUrl}" alt="${result.source}">
+                    <span>${result.source} > ${result.category}</span>
+                </div>
+                <div class="result-title">
+                    <a href="${result.source_url || '#'}" target="_blank">
+                        ${highlightText(result.title, keywords)}
+                    </a>
+                </div>
+                <div class="result-text">${textSnippet}</div>
+                <div class="result-meta">
+                    <span>Skor Relevansi: ${result.score.toFixed(3)}</span>
+                </div>
+            `;
+
+            if (result.source_url) {
+                resultItem.style.cursor = 'pointer';
+                resultItem.addEventListener('click', (e) => {
+                    if (e.target.tagName !== 'A') {
+                        window.open(result.source_url, '_blank');
+                    }
+                });
+            }
+            return resultItem;
+        }
+
+        function renderPagination(page, totalPages) {
+            const paginationDiv = document.getElementById('pagination');
+            paginationDiv.innerHTML = '';
+            if (totalPages > 1) {
+                const prevBtn = document.createElement('button');
+                prevBtn.textContent = '‹ Sebelumnya';
+                prevBtn.disabled = page === 1;
+                prevBtn.onclick = () => doSearch(lastQuery, lastSort, page - 1, lastCategory);
+                paginationDiv.appendChild(prevBtn);
+
+                const pageInfo = document.createElement('span');
+                pageInfo.textContent = `Halaman ${page}`;
+                pageInfo.style.margin = '0 12px';
+                pageInfo.style.color = 'var(--google-gray-meta)';
+                paginationDiv.appendChild(pageInfo);
+
+                const nextBtn = document.createElement('button');
+                nextBtn.textContent = 'Berikutnya ›';
+                nextBtn.disabled = page === totalPages;
+                nextBtn.onclick = () => doSearch(lastQuery, lastSort, page + 1, lastCategory);
+                paginationDiv.appendChild(nextBtn);
+            }
+        }
+
+        // FUNGSI doSearch DENGAN PERBAIKAN BUG
+        async function doSearch(query, sort, page = 1, category = '') {
+            loading.style.display = 'block';
+            resultsSection.style.display = 'none';
+            noResults.style.display = 'none';
+            try {
+                const response = await fetch(`/search?q=${encodeURIComponent(query)}&sort=${encodeURIComponent(sort)}&page=${page}&category=${encodeURIComponent(category)}`);
+                const data = await response.json();
+
+                loading.style.display = 'none';
+
+                const sortControl = document.getElementById('sortSelect');
+                const categoryControl = document.getElementById('categorySelect');
+
+                if (data.categories && data.categories.length > 0) {
+                    categoryControl.innerHTML = '<option value="">Semua Kategori</option>' + data.categories.map(cat => `<option value="${cat}"${data.selected_category === cat ? ' selected' : ''}>${cat}</option>`).join('');
+                    categoryControl.style.display = 'inline-block';
+                } else {
+                    categoryControl.style.display = 'none';
+                }
+
+                if (data.results.length === 0) {
+                    sortControl.style.display = 'none';
+                    noResults.style.display = 'block';
+                    document.getElementById('pagination').innerHTML = '';
+                    resultsList.innerHTML = '';
+                    resultsCount.innerHTML = `Tidak ada hasil untuk "${data.query}"`;
+                    resultsSection.style.display = 'block';
+
+                    const suggestionBox = document.getElementById('suggestionBox');
+                    if (data.suggestion) {
+                        suggestionBox.innerHTML = `Mungkin maksud Anda: <a href="#" id="suggestionLink">${data.suggestion}</a>`;
+                        document.getElementById('suggestionLink').onclick = function (e) {
+                            e.preventDefault();
+                            searchInput.value = data.suggestion;
+                            lastQuery = data.suggestion;
+                            doSearch(data.suggestion, sortSelect.value, 1, categorySelect.value);
+                        };
+                    } else {
+                        suggestionBox.innerHTML = '';
+                    }
+                } else {
+                    sortControl.style.display = 'inline-block';
+                    noResults.style.display = 'none';
+                    resultsCount.textContent = `Sekitar ${data.total} hasil ditemukan`;
+                    resultsList.innerHTML = '';
+                    data.results.forEach(result => {
+                        resultsList.appendChild(renderResultItem(result, data.used_keywords));
+                    });
+                    lastPage = data.page;
+                    lastTotalPages = data.total_pages;
+                    renderPagination(data.page, data.total_pages);
+                    resultsSection.style.display = 'block';
+                }
+
+            } catch (error) {
+                loading.style.display = 'none';
+                console.error('Error:', error);
+                resultsList.innerHTML = `<div style='color:red; text-align:center; padding: 20px;'>Terjadi kesalahan saat memuat hasil.</div>`;
+                resultsSection.style.display = 'block';
+            }
+        }
+
+        searchForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const query = searchInput.value.trim();
+            if (!query) return;
+            lastQuery = query;
+            lastSort = sortSelect.value;
+            lastCategory = categorySelect.value;
+            await doSearch(query, sortSelect.value, 1, categorySelect.value);
+        });
+
+        sortSelect.addEventListener('change', async () => {
+            if (lastQuery) {
+                lastSort = sortSelect.value;
+                await doSearch(lastQuery, sortSelect.value, 1, lastCategory);
+            }
+        });
+
+        categorySelect.addEventListener('change', async () => {
+            if (lastQuery) {
+                lastCategory = categorySelect.value;
+                await doSearch(lastQuery, lastSort, 1, categorySelect.value);
+            }
+        });
+
+        const voiceBtn = document.getElementById('voiceBtn');
+        const voicePopup = document.getElementById('voicePopup');
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'id-ID';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            let recognizing = false;
+
+            voiceBtn.onclick = function () {
+                if (recognizing) {
+                    recognition.stop();
+                    return;
+                }
+                recognition.start();
+            };
+
+            recognition.onstart = function () {
+                recognizing = true;
+                voiceBtn.classList.add('active');
+                voicePopup.style.display = 'block';
+            };
+
+            recognition.onend = function () {
+                recognizing = false;
+                voiceBtn.classList.remove('active');
+                voicePopup.style.display = 'none';
+            };
+
+            recognition.onerror = function (event) {
+                console.error("Speech recognition error:", event.error);
+            };
+
+            recognition.onresult = function (event) {
+                const transcript = event.results[0][0].transcript;
+                searchInput.value = transcript;
+                searchForm.dispatchEvent(new Event('submit', { cancelable: true }));
+            };
+        } else {
+            voiceBtn.style.display = 'none';
+        }
+
+        searchInput.focus();
+    </script>
+</body>
+
+</html>
